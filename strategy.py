@@ -25,6 +25,7 @@ class CustomStrategy(bt.Strategy):
         self.profitable_trades = 0
         self.trade_returns = []
         self.profit_losses = []
+        self.cumulative_returns = []  # Initialize cumulative returns
 
         # Initialize indicators based on user selections
         if st.session_state.get('use_sma'):
@@ -114,21 +115,24 @@ class CustomStrategy(bt.Strategy):
         
         # Sharpe Ratio
         if self.trade_returns:
-            mean_return = sum(self.trade_returns) / len(self.trade_returns)
-            volatility = (sum((x - mean_return) ** 2 for x in self.trade_returns) / len(self.trade_returns)) ** 0.5
+            mean_return = np.mean(self.trade_returns)
+            volatility = np.std(self.trade_returns)
             sharpe_ratio = mean_return / volatility if volatility != 0 else 0
         else:
             sharpe_ratio = 0
 
         # Maximum Drawdown
-        cumulative_returns = [sum(self.trade_returns[:i+1]) for i in range(len(self.trade_returns))]
-        peak = cumulative_returns[0]
-        max_drawdown = 0
-        for value in cumulative_returns:
-            if value > peak:
-                peak = value
-            drawdown = (peak - value) / peak
-            max_drawdown = max(max_drawdown, drawdown)
+        if self.trade_returns:
+            self.cumulative_returns = np.cumsum(self.trade_returns)
+            peak = self.cumulative_returns[0]
+            max_drawdown = 0
+            for value in self.cumulative_returns:
+                if value > peak:
+                    peak = value
+                drawdown = (peak - value) / peak if peak > 0 else 0
+                max_drawdown = max(max_drawdown, drawdown)
+        else:
+            max_drawdown = 0  # Set to 0 if there are no trades
 
         self.log(f'Win Rate: {win_rate:.2f}%')
         self.log(f'Sharpe Ratio: {sharpe_ratio:.2f}')

@@ -55,73 +55,92 @@ macd_signal = st.sidebar.slider("MACD Signal Period", 1, 50, 9)
 
 # Indicator selection
 st.sidebar.header("Select Indicators")
-st.sidebar.checkbox("Use Short Moving Average", key='use_sma', value=True)
-st.sidebar.checkbox("Use Long Moving Average", key='use_lma', value=True)
-st.sidebar.checkbox("Use RSI", key='use_rsi', value=True)
-st.sidebar.checkbox("Use Exponential Moving Average", key='use_ema', value=True)
-st.sidebar.checkbox("Use MACD", key='use_macd', value=True)
-st.sidebar.checkbox("Enable Stop-Loss", key='use_stop_loss', value=True)
+use_sma = st.sidebar.checkbox("Use Short Moving Average", key='use_sma', value=True)
+use_lma = st.sidebar.checkbox("Use Long Moving Average", key='use_lma', value=True)
+use_rsi = st.sidebar.checkbox("Use RSI", key='use_rsi', value=True)
+use_ema = st.sidebar.checkbox("Use Exponential Moving Average", key='use_ema', value=True)
+use_macd = st.sidebar.checkbox("Use MACD", key='use_macd', value=True)
+use_stop_loss = st.sidebar.checkbox("Enable Stop-Loss", key='use_stop_loss', value=True)
 
-if st.button("Run Backtest"):
-    # Download data using yfinance
-    data = fetch_data(ticker, start=start_date, end=end_date)
 
-    # Check if data was fetched successfully
-    if data.empty:
-        st.error("No data fetched. Please check the ticker and date range.")
-    else:
-        # Plot stock data
-        plot_data(data, selected_company, 'Close')
+# Check if at least one indicator is selected
+if not (use_sma or use_lma or use_rsi or use_ema or use_macd):
+    st.sidebar.error("Please select at least one indicator to proceed.")
+else:
 
-        # Prepare data for Backtrader
-        data_bt = bt.feeds.PandasData(dataname=data)
+    if st.button("Run Backtest"):
+        # Download data using yfinance
+        data = fetch_data(ticker, start=start_date, end=end_date)
 
-        # Initialize Cerebro
-        cerebro = bt.Cerebro()
-        cerebro.adddata(data_bt)
+        # Check if data was fetched successfully
+        if data.empty:
+            st.error("No data fetched. Please check the ticker and date range.")
+        else:
+            # Plot stock data
+            plot_data(data, selected_company, 'Close')
 
-        # Add strategy with user-defined parameters
-        cerebro.addstrategy(CustomStrategy, 
-                             short_window=short_window, 
-                             long_window=long_window, 
-                             rsi_period=rsi_period, 
-                             rsi_overbought=rsi_overbought, 
-                             rsi_oversold=rsi_oversold,
-                             use_stop_loss=st.session_state['use_stop_loss'], 
-                             stop_loss_percent=stop_loss_percent, 
-                             macd_short=macd_short, 
-                             macd_long=macd_long, 
-                             macd_signal=macd_signal)
-        
-        initial_value = 1000000.0  # Initial balance
-        cerebro.broker.setcash(initial_value)
+            # Prepare data for Backtrader
+            data_bt = bt.feeds.PandasData(dataname=data)
 
-        # Run the backtest
-        results = cerebro.run()
+            # Initialize Cerebro
+            cerebro = bt.Cerebro()
+            cerebro.adddata(data_bt)
 
-        # Access the logs from the last strategy instance
-        strategy_instance = results[0]
-        log_messages = strategy_instance.log_messages
+            # Add strategy with user-defined parameters
+            cerebro.addstrategy(CustomStrategy, 
+                                short_window=short_window, 
+                                long_window=long_window, 
+                                rsi_period=rsi_period, 
+                                rsi_overbought=rsi_overbought, 
+                                rsi_oversold=rsi_oversold,
+                                use_stop_loss=st.session_state['use_stop_loss'], 
+                                stop_loss_percent=stop_loss_percent, 
+                                macd_short=macd_short, 
+                                macd_long=macd_long, 
+                                macd_signal=macd_signal)
+            
+            initial_value = 1000000.0  # Initial balance
+            cerebro.broker.setcash(initial_value)
 
-        # Get final balance and calculate net profit/loss
-        final_value = cerebro.broker.getvalue()
-        net_profit_loss = final_value - initial_value  
+            # Run the backtest
+            results = cerebro.run()
 
-        # Display results in a more structured way
-        st.markdown(f"### Initial Balance: **${initial_value:.2f}**")
-        st.markdown(f"### Final Balance: **${final_value:.2f}**")
-        st.markdown(f"### Net Profit/Loss: **${net_profit_loss:.2f}**")
-        st.markdown(f"### Total Buy Trades: **{strategy_instance.total_buy_trades}**")
-        st.markdown(f"### Total Sell Trades: **{strategy_instance.total_sell_trades}**")
-        st.markdown(f"### Win Rate: **{strategy_instance.profitable_trades / (strategy_instance.total_buy_trades + strategy_instance.total_sell_trades) * 100:.2f}%**")
-        st.markdown(f'### Sharpe Ratio: {strategy_instance.sharpe_ratio:.2f}')  # Ensure sharpe_ratio is calculated correctly
-        st.markdown(f'### Maximum Drawdown: {strategy_instance.max_drawdown:.2f}')  # Ensure max_drawdown is calculated correctly
+            # Access the logs from the last strategy instance
+            strategy_instance = results[0]
+            log_messages = strategy_instance.log_messages
 
-        # Show logs in a scrollable div
-        with st.expander("View Log Messages", expanded=False):
-            for msg in log_messages:
-                st.text(msg)
+            # Get final balance and calculate net profit/loss
+            final_value = cerebro.broker.getvalue()
+            net_profit_loss = final_value - initial_value  
 
-        # Plot the results
-        fig = cerebro.plot()[0][0]  
-        st.pyplot(fig)
+            # Display results in a more structured way
+            st.markdown(f"### Initial Balance: **${initial_value:.2f}**")
+            st.markdown(f"### Final Balance: **${final_value:.2f}**")
+            st.markdown(f"### Net Profit/Loss: **${net_profit_loss:.2f}**")
+            st.markdown(f"### Total Buy Trades: **{strategy_instance.total_buy_trades}**")
+            st.markdown(f"### Total Sell Trades: **{strategy_instance.total_sell_trades}**")
+            
+            # Calculate total trades
+            total_trades = strategy_instance.total_buy_trades + strategy_instance.total_sell_trades
+
+            # Safely calculate the win rate
+            if total_trades > 0:
+                win_rate = (strategy_instance.profitable_trades / total_trades) * 100
+            else:
+                win_rate = 0  # Avoid division by zero
+
+            # Display the win rate in the Streamlit app
+            st.markdown(f"### Win Rate: **{win_rate:.2f}%**")
+
+
+            st.markdown(f'### Sharpe Ratio: {strategy_instance.sharpe_ratio:.2f}')  # Ensure sharpe_ratio is calculated correctly
+            st.markdown(f'### Maximum Drawdown: {strategy_instance.max_drawdown:.2f}')  # Ensure max_drawdown is calculated correctly
+
+            # Show logs in a scrollable div
+            with st.expander("View Log Messages", expanded=False):
+                for msg in log_messages:
+                    st.text(msg)
+
+            # Plot the results
+            fig = cerebro.plot()[0][0]  
+            st.pyplot(fig)
