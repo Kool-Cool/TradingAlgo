@@ -43,7 +43,11 @@ This application allows users to backtest trading strategies using historical ma
 
 	`streamlit run app.py`
 
-  
+4. UI Snapshot
+
+   <img src="https://res.cloudinary.com/dxqdslrdu/image/upload/v1735951019/Kool_Cool/Screenshot_2025-01-04_060347_iup8gq.png" alt='UIScreenShot01'></img>
+   <img src="https://res.cloudinary.com/dxqdslrdu/image/upload/v1735951019/Kool_Cool/Screenshot_2025-01-04_060435_faqby4.png" alt='UIScreenShot02'></img>
+
   
   
 
